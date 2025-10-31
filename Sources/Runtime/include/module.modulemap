@@ -1,0 +1,4 @@
+module Runtime {
+  umbrella header "ObjCDelegateProxy.h"
+  export *
+}

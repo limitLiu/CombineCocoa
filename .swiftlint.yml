@@ -1,0 +1,29 @@
+disabled_rules:
+  - trailing_comma
+  - function_body_length
+  - opening_brace
+  - closure_parameter_position
+  - large_tuple
+  - unused_setter_value
+  - type_name
+  - identifier_name
+  - function_parameter_count
+  - empty_enum_arguments
+  - void_function_in_ternary
+  - nesting
+
+included:
+  - CombineCocoa
+
+excluded:
+
+line_length: 180
+
+identifier_name:
+  min_length: 1
+
+file_length:
+  warning: 550
+  error: 1000
+
+reporter: "xcode"
