@@ -144,9 +144,7 @@ extension Reactive where Base: UITableView {
       _ = self.delegate
       return source.subscribeProxyDataSource(ofObject: base, dataSource: dataSource, retainDataSource: true) {
         [weak tableView = base] (_: TableViewDataSourceProxy, event) in
-        guard let tableView = tableView else {
-          return
-        }
+        guard let tableView else { return }
         dataSource.tableView(tableView, observedEvent: event)
       }
     }
