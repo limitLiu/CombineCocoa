@@ -175,7 +175,7 @@ extension Publisher {
     }
 
     let subscription = self.receive(on: RunLoop.main)
-//      .prefix(untilOutputFrom: object.rx.deallocated)
+      .prefix(untilOutputFrom: object.rx.deallocated)
       .sink(
         receiveCompletion: { event in
           switch event {

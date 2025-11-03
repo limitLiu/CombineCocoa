@@ -10,9 +10,9 @@ public nonisolated struct Reactive<Base> {
 }
 
 public nonisolated protocol CombineCompatible {
-  associatedtype E
-  static var rx: Reactive<E>.Type { get set }
-  var rx: Reactive<E> { get set }
+  associatedtype Base
+  static var rx: Reactive<Base>.Type { get set }
+  var rx: Reactive<Base> { get set }
 }
 
 public extension CombineCompatible {
@@ -35,6 +35,8 @@ private final class DeinitSignal {
 }
 
 nonisolated(unsafe) private var deallocatedSubjectContext: UInt8 = 0
+
+extension NSObject: CombineCompatible {}
 
 public extension Reactive where Base: AnyObject {
   var deallocated: AnyPublisher<Void, Never> {
