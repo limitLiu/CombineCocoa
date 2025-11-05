@@ -4,28 +4,31 @@ import Combine
 import Foundation
 
 extension Publisher {
-  public func concatMap<T: Publisher>(_ transform: @escaping (Output) -> T) -> Publishers.ConcatMap<Self, T> {
+  public func concatMap<T, R>(_ transform: @escaping (Output) -> R) -> Publishers.ConcatMap<R, Self>
+  where T == R.Output, R: Publisher, Failure == R.Failure {
     .init(upstream: self, transform: transform)
   }
 }
 
 extension Publishers {
-  public struct ConcatMap<Upstream: Publisher, Downstream: Publisher>: Publisher
-  where Upstream.Failure == Downstream.Failure {
-    public typealias Output = Downstream.Output
+  public struct ConcatMap<R: Publisher, Upstream: Publisher>: Publisher
+  where R.Failure == Upstream.Failure {
+    public typealias Output = R.Output
     public typealias Failure = Upstream.Failure
 
-    private let upstream: Upstream
-    private let transform: (Upstream.Output) -> Downstream
+    public typealias Transformer = (Upstream.Output) -> R
 
-    public init(upstream: Upstream, transform: @escaping (Upstream.Output) -> Downstream) {
+    private let upstream: Upstream
+    private let transform: Transformer
+
+    public init(upstream: Upstream, transform: @escaping Transformer) {
       self.upstream = upstream
       self.transform = transform
     }
 
     public func receive<S: Subscriber>(subscriber: S)
     where S.Input == Output, S.Failure == Failure {
-      let subscription = ConcatMapSubscription(
+      let subscription = Subscription(
         upstream: upstream,
         downstream: subscriber,
         transform: transform
@@ -35,154 +38,166 @@ extension Publishers {
   }
 }
 
-private final class ConcatMapSubscription<Upstream: Publisher, Downstream: Publisher, FinalDownstream: Subscriber>:
-  Subscription, Subscriber
-where
-  FinalDownstream.Input == Downstream.Output,
-  FinalDownstream.Failure == Upstream.Failure,
-  Upstream.Failure == Downstream.Failure
-{
-  typealias Input = Upstream.Output
-  typealias Failure = Upstream.Failure
+extension Publishers.ConcatMap {
+  final class Subscription<Downstream: Subscriber>: Combine.Subscription
+  where
+    Downstream.Input == R.Output,
+    Downstream.Failure == Failure
+  {
+    private var sink: OutterSink<Downstream>?
 
-  private let downstream: FinalDownstream
-  private let transform: (Upstream.Output) -> Downstream
-
-  private let lock = NSRecursiveLock()
-
-  private var upstreamQueue: [Upstream.Output] = []
-  private var isProcessing: Bool = false
-  private var downstreamDemand: Subscribers.Demand = .none
-  private var upstreamSubscription: Subscription?
-  private var innerSubscription: Subscription?
-  private var isUpstreamFinished: Bool = false
-
-  init(
-    upstream: Upstream,
-    downstream: FinalDownstream,
-    transform: @escaping (Upstream.Output) -> Downstream
-  ) {
-    self.downstream = downstream
-    self.transform = transform
-    upstream.subscribe(self)
-  }
-
-  func request(_ demand: Subscribers.Demand) {
-    lock.lock()
-    downstreamDemand += demand
-    let subscription = self.innerSubscription ?? self.upstreamSubscription
-    lock.unlock()
-    subscription?.request(demand)
-  }
-
-  func cancel() {
-    lock.lock()
-    upstreamQueue.removeAll()
-    let upstream = self.upstreamSubscription
-    let inner = self.innerSubscription
-    self.upstreamSubscription = nil
-    self.innerSubscription = nil
-    lock.unlock()
-    upstream?.cancel()
-    inner?.cancel()
-  }
-
-  func receive(subscription: Subscription) {
-    lock.lock()
-    self.upstreamSubscription = subscription
-    lock.unlock()
-    subscription.request(.max(1))
-  }
-
-  func receive(_ input: Upstream.Output) -> Subscribers.Demand {
-    lock.lock()
-    if isProcessing {
-      upstreamQueue.append(input)
-    } else {
-      isProcessing = true
-      startProcessing(element: input)
+    init(
+      upstream: Upstream,
+      downstream: Downstream,
+      transform: @escaping Transformer
+    ) {
+      self.sink = OutterSink(
+        upstream: upstream,
+        downstream: downstream,
+        transform: transform
+      )
     }
-    lock.unlock()
-    return .none
-  }
 
-  func receive(completion: Subscribers.Completion<Upstream.Failure>) {
-    lock.lock()
-    isUpstreamFinished = true
-    if !isProcessing && upstreamQueue.isEmpty {
-      lock.unlock()
-      downstream.receive(completion: completion)
-    } else {
-      lock.unlock()
+    func request(_ demand: Subscribers.Demand) {
+      sink?.demand(demand)
+    }
+
+    func cancel() {
+      sink = .none
     }
   }
 
-  private func startProcessing(element: Upstream.Output) {
-    let innerPublisher = transform(element)
+  private final class OutterSink<Downstream: Subscriber>: Subscriber
+  where
+    Downstream.Input == R.Output,
+    Downstream.Failure == Upstream.Failure
+  {
+    typealias Input = Upstream.Output
+    private let lock = NSRecursiveLock()
 
-    let innerSubscriber = InnerSubscriber(parent: self)
-    innerPublisher.subscribe(innerSubscriber)
-  }
+    private let downstream: Downstream
+    private let transform: Transformer
 
-  fileprivate func innerDidComplete(with completion: Subscribers.Completion<Downstream.Failure>?) {
-    lock.lock()
-    innerSubscription = .none
-    if case .failure(let error) = completion {
-      lock.unlock()
-      downstream.receive(completion: .failure(error))
-      return
+    private var upstreamSubscription: Combine.Subscription?
+    private var innerSink: InnerSink<Downstream>?
+    private var bufferedDemand: Subscribers.Demand = .none
+
+    init(upstream: Upstream, downstream: Downstream, transform: @escaping (Input) -> R) {
+      self.downstream = downstream
+      self.transform = transform
+      upstream.subscribe(self)
     }
 
-    if !upstreamQueue.isEmpty {
-      let nextElement = upstreamQueue.removeFirst()
-      lock.unlock()
-      startProcessing(element: nextElement)
-    } else {
-      isProcessing = false
-      if isUpstreamFinished {
-        lock.unlock()
-        downstream.receive(completion: .finished)
+    func demand(_ demand: Subscribers.Demand) {
+      lock.lock()
+      defer { lock.unlock() }
+      if let innerSink {
+        innerSink.demand(demand)
       } else {
-        let subscription = self.upstreamSubscription
-        lock.unlock()
-        subscription?.request(.max(1))
+        bufferedDemand = demand
+      }
+      upstreamSubscription?.requestIfNeeded(.unlimited)
+    }
+
+    func receive(_ input: Input) -> Subscribers.Demand {
+      lock.lock()
+      defer { lock.unlock() }
+      let transformed = transform(input)
+      if let innerSink {
+        innerSink.enqueue(transformed)
+      } else {
+        innerSink = InnerSink(outterSink: self, upstream: transformed, downstream: downstream)
+        innerSink?.demand(bufferedDemand)
+      }
+      return .unlimited
+    }
+
+    func receive(subscription: Combine.Subscription) {
+      lock.lock()
+      defer { lock.unlock() }
+      upstreamSubscription = subscription
+    }
+
+    func receive(completion: Subscribers.Completion<Failure>) {
+      lock.lock()
+      defer { lock.unlock() }
+      innerSink = .none
+      downstream.receive(completion: completion)
+      cancelUpstream()
+    }
+
+    func cancelUpstream() {
+      lock.lock()
+      defer { lock.unlock() }
+      upstreamSubscription?.cancel()
+      upstreamSubscription = .none
+    }
+
+    deinit {
+      cancelUpstream()
+    }
+  }
+
+  private final class InnerSink<Downstream: Subscriber>: Sink<R, Downstream>
+  where
+    Downstream.Input == R.Output,
+    Downstream.Failure == Failure,
+    Upstream.Failure == Downstream.Failure
+  {
+    private weak var outterSink: OutterSink<Downstream>?
+    private let lock = NSRecursiveLock()
+    private var hasActive: Bool
+    private var publishQueue: [R]
+
+    init(outterSink: OutterSink<Downstream>, upstream: R, downstream: Downstream) {
+      self.outterSink = outterSink
+      self.hasActive = false
+      self.publishQueue = []
+      super.init(upstream: upstream, downstream: downstream)
+    }
+
+    func enqueue(_ publisher: R) {
+      lock.lock()
+      defer { lock.unlock() }
+      if hasActive {
+        publishQueue.append(publisher)
+      } else {
+        publisher.subscribe(self)
       }
     }
-  }
 
-  fileprivate func received(innerSubscription: Subscription) {
-    lock.lock()
-    self.innerSubscription = innerSubscription
-    let demand = self.downstreamDemand
-    lock.unlock()
-    if demand > .none {
-      innerSubscription.request(demand)
+    override func receive(_ input: Sink<R, Downstream>.Input) -> Subscribers.Demand {
+      buffer.buffer(value: input)
+    }
+
+    override func receive(subscription: Combine.Subscription) {
+      lock.lock()
+      defer { lock.unlock() }
+      hasActive = true
+      super.receive(subscription: subscription)
+      subscription.requestIfNeeded(buffer.demandState.remaining)
+    }
+
+    override func receive(completion: Subscribers.Completion<Sink<R, Downstream>.Failure>) {
+      lock.lock()
+      defer { lock.unlock() }
+      hasActive = false
+      switch completion {
+      case .finished:
+        if !publishQueue.isEmpty {
+          publishQueue.removeFirst().subscribe(self)
+        }
+      case .failure(let error):
+        buffer.complete(completion: .failure(error))
+        outterSink?.receive(completion: completion)
+      }
     }
   }
 }
 
-private extension ConcatMapSubscription {
-  class InnerSubscriber: Subscriber {
-    typealias Input = Downstream.Output
-    typealias Failure = Downstream.Failure
-
-    private weak var parent: ConcatMapSubscription?
-
-    init(parent: ConcatMapSubscription) {
-      self.parent = parent
-    }
-
-    func receive(subscription: Subscription) {
-      parent?.received(innerSubscription: subscription)
-    }
-
-    func receive(_ input: Downstream.Output) -> Subscribers.Demand {
-      return parent?.downstream.receive(input) ?? .none
-    }
-
-    func receive(completion: Subscribers.Completion<Downstream.Failure>) {
-      parent?.innerDidComplete(with: completion)
-    }
+extension Publishers.ConcatMap.Subscription: CustomStringConvertible {
+  var description: String {
+    "ConcatMap.Subscription<\(Downstream.Input.self), \(Downstream.Failure.self)>"
   }
 }
 
