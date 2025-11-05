@@ -13,12 +13,10 @@ public final class PublishSubject<Output, Failure: Error>: Subject {
 
   internal var hasAnyDownstreamDemand = false
 
-  private var subscriberCount = 0
-
   public var hasObservers: Bool {
     lock.lock()
     defer { lock.unlock() }
-    return subscriberCount > 0
+    return !downstreams.isEmpty
   }
 
   public init() {}
@@ -46,7 +44,6 @@ public final class PublishSubject<Output, Failure: Error>: Subject {
     if active {
       let conduit = Conduit(parent: self, downstream: subscriber)
       downstreams.insert(conduit)
-      subscriberCount += 1
       lock.unlock()
       subscriber.receive(subscription: conduit)
     } else {
@@ -64,7 +61,6 @@ public final class PublishSubject<Output, Failure: Error>: Subject {
       return
     }
     let downstreams = self.downstreams
-    subscriberCount = 0
     lock.unlock()
     downstreams.forEach { conduit in
       conduit.offer(input)
@@ -107,7 +103,6 @@ public final class PublishSubject<Output, Failure: Error>: Subject {
       return
     }
     downstreams.remove(conduit)
-    subscriberCount -= 1
     lock.unlock()
   }
 }

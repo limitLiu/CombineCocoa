@@ -49,3 +49,12 @@ extension ConduitList {
     }
   }
 }
+
+extension ConduitList {
+  var isEmpty: Bool {
+    switch self {
+    case .empty: true
+    default: false
+    }
+  }
+}
