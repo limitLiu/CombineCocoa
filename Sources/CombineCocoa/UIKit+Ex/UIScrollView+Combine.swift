@@ -1,6 +1,8 @@
 #if canImport(UIKit)
+
 import Combine
-import UIKit
+import class UIKit.UIScrollView
+import protocol UIKit.UIScrollViewDelegate
 
 extension UIScrollView: CombineCompatible {}
 

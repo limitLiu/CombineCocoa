@@ -1,7 +1,15 @@
 #if canImport(UIKit)
 
 import Combine
-import UIKit
+import class Foundation.RunLoop
+import class Foundation.NSObject
+import struct Foundation.IndexPath
+import class Foundation.NSNumber
+import class UIKit.UIView
+import class UIKit.UITableView
+import class UIKit.UITableViewCell
+import protocol UIKit.UITableViewDataSource
+import protocol UIKit.UITableViewDelegate
 
 extension UITableView: CombineCompatible {}
 

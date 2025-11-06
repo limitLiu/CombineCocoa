@@ -1,6 +1,7 @@
 #if canImport(UIKit)
+
 import Combine
-import UIKit
+import class UIKit.UIButton
 
 extension UIButton: CombineCompatible {}
 

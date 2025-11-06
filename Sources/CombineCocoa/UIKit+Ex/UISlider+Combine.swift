@@ -1,6 +1,7 @@
 #if canImport(UIKit)
+
 import Combine
-import UIKit
+import class UIKit.UISlider
 
 extension UISlider: CombineCompatible {}
 

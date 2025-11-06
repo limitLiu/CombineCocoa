@@ -9,7 +9,7 @@ public nonisolated protocol SectionModelType: Hashable, Sendable where Item: Has
 public nonisolated struct SectionModel<Section: Sendable & Hashable, ItemType: Sendable & Hashable> {
   public var model: Section
   public var items: [Item]
-  
+
   public init(model: Section, items: [Item]) {
     self.model = model
     self.items = items
@@ -19,7 +19,7 @@ public nonisolated struct SectionModel<Section: Sendable & Hashable, ItemType: S
 extension SectionModel: SectionModelType {
   public typealias Identity = Section
   public typealias Item = ItemType
-  
+
   public var identity: Section {
     return model
   }
@@ -39,10 +39,10 @@ extension SectionModel {
 }
 
 extension SectionModel: Equatable where Section: Equatable, ItemType: Equatable {
-  
+
   public static func == (lhs: SectionModel, rhs: SectionModel) -> Bool {
     return lhs.model == rhs.model
-    && lhs.items == rhs.items
+      && lhs.items == rhs.items
   }
 }
 

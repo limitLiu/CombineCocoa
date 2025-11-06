@@ -1,7 +1,7 @@
 #if canImport(UIKit)
 
 import Combine
-import UIKit
+import class UIKit.UIControl
 
 extension UIControl: CombineCompatible {}
 

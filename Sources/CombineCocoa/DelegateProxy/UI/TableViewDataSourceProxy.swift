@@ -24,10 +24,7 @@ private final class TableViewDataSourceNotSet: NSObject, UITableViewDataSource {
 }
 
 @MainActor
-open class TableViewDataSourceProxy: DelegateProxy<UITableView, UITableViewDataSource>,
-  @preconcurrency DelegateProxyType
-{
-
+open class TableViewDataSourceProxy: DelegateProxy<UITableView, UITableViewDataSource>, DelegateProxyType {
   public weak private(set) var tableView: UITableView?
 
   public init(tableView: UITableView) {

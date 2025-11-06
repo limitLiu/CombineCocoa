@@ -1,5 +1,7 @@
 import Combine
-import Foundation
+
+import struct Foundation.Notification
+import class Foundation.NotificationCenter
 
 extension NotificationCenter: CombineCompatible {}
 

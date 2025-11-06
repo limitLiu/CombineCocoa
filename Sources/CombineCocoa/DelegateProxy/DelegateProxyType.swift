@@ -1,11 +1,10 @@
 import Combine
 import Foundation
 
-private nonisolated class DelegateProxyFactory {
-  @MainActor
+@MainActor
+private class DelegateProxyFactory {
   private static var _sharedFactories: [UnsafeRawPointer: DelegateProxyFactory] = [:]
 
-  @MainActor
   fileprivate static func sharedFactory<DelegateProxy: DelegateProxyType>(
     for proxyType: DelegateProxy.Type
   ) -> DelegateProxyFactory {
@@ -29,7 +28,6 @@ private nonisolated class DelegateProxyFactory {
     self._identifier = proxyType.identifier
   }
 
-  @MainActor
   fileprivate func extend<DelegateProxy: DelegateProxyType, ParentObject>(
     make: @escaping (ParentObject) -> DelegateProxy
   ) {
@@ -79,6 +77,7 @@ func castOptionalOrFatalError<T>(_ value: Any?) -> T? {
   return v
 }
 
+@MainActor
 public protocol DelegateProxyType: AnyObject {
   associatedtype ParentObject: AnyObject
   associatedtype Delegate
@@ -123,17 +122,14 @@ extension DelegateProxyType {
 }
 
 extension DelegateProxyType {
-  @MainActor
   public static func register<Parent>(make: @escaping (Parent) -> Self) {
     self.factory.extend(make: make)
   }
 
-  @MainActor
   public static func createProxy(for object: AnyObject) -> Self {
     castOrFatalError(factory.createProxy(for: object))
   }
 
-  @MainActor
   public static func proxy(for object: ParentObject) -> Self {
     let maybeProxy = self.assignedProxy(for: object)
     let proxy: AnyObject
@@ -156,7 +152,6 @@ extension DelegateProxyType {
     return delegateProxy
   }
 
-  @MainActor
   public static func installForwardDelegate(
     _ forwardDelegate: Delegate,
     retainDelegate: Bool,
@@ -186,7 +181,6 @@ extension DelegateProxyType {
 }
 
 extension DelegateProxyType {
-  @MainActor
   private static var factory: DelegateProxyFactory {
     DelegateProxyFactory.sharedFactory(for: self)
   }
@@ -201,6 +195,7 @@ extension DelegateProxyType {
   }
 }
 
+@MainActor
 public protocol HasDelegate: AnyObject {
   associatedtype Delegate
   var delegate: Delegate? { get set }
@@ -224,12 +219,10 @@ public protocol HasDataSource: AnyObject {
 }
 
 extension DelegateProxyType where ParentObject: HasDataSource, Self.Delegate == ParentObject.DataSource {
-  @MainActor
   public static func currentDelegate(for object: ParentObject) -> Delegate? {
     object.dataSource
   }
 
-  @MainActor
   public static func setCurrentDelegate(_ delegate: Delegate?, to object: ParentObject) {
     object.dataSource = delegate
   }

@@ -1,7 +1,12 @@
 #if canImport(UIKit)
 
 import Combine
-import UIKit
+import class Foundation.NSObject
+import struct Foundation.IndexPath
+import class UIKit.UICollectionView
+import class UIKit.UICollectionViewCell
+import protocol UIKit.UICollectionViewDataSource
+import protocol UIKit.UICollectionViewDelegate
 
 extension UICollectionView: CombineCompatible {}
 

@@ -1,6 +1,8 @@
 #if canImport(UIKit)
+
 import Combine
-import UIKit
+import class UIKit.UITextView
+import protocol UIKit.UITextViewDelegate
 
 extension UITextView: CombineCompatible {}
 
@@ -27,11 +29,13 @@ extension Reactive where Base: UITextView {
     }
     return ControlProperty(values: source, valueSink: bindingObserver)
   }
-  
+
   @MainActor
   public var didChange: ControlEvent<()> {
-    return ControlEvent<()>(events: self.delegate.methodInvoked(#selector(UITextViewDelegate.textViewDidChange(_:)))
-      .map { _ in () })
+    return ControlEvent<()>(
+      events: self.delegate.methodInvoked(#selector(UITextViewDelegate.textViewDidChange(_:)))
+        .map { _ in () }
+    )
   }
 }
 
