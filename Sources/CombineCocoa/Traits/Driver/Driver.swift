@@ -7,7 +7,7 @@ public struct DriverSharingStrategy: SharingStrategyProtocol {
   public static var scheduler: some Scheduler { RunLoop.main }
 
   public static func share<Element>(_ source: Observable<Element>) -> Observable<Element> {
-    source.share().eraseToAnyPublisher()
+    source.share(replay: 1).eraseToAnyPublisher()
   }
 }
 
