@@ -34,6 +34,7 @@ class DemandBuffer<S: Subscriber> {
     flush()
   }
 
+  @discardableResult
   func demand(_ demand: Subscribers.Demand) -> Subscribers.Demand {
     flush(adding: demand)
   }
