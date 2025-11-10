@@ -16,7 +16,7 @@ extension SharedSequenceConvertibleType {
   public func asObservable() -> Observable<Element> {
     self.asSharedSequence().asObservable()
   }
-  
+
   public func map<R>(_ transform: @escaping (Element) -> R) -> SharedSequence<SharingStrategy, R> {
     let src = asObservable().map(transform).eraseToAnyPublisher()
     return SharedSequence<SharingStrategy, R>(src)
@@ -30,25 +30,27 @@ extension SharedSequenceConvertibleType where Element: Equatable {
   }
 }
 
-public struct SharedSequence<SharingStrategy: SharingStrategyProtocol, Element>: SharedSequenceConvertibleType, ObservableConvertibleType {
+public struct SharedSequence<SharingStrategy: SharingStrategyProtocol, Element>: SharedSequenceConvertibleType,
+  ObservableConvertibleType
+{
   let source: Observable<Element>
-  
+
   init(_ source: Observable<Element>) {
     self.source = SharingStrategy.share(source)
   }
-  
+
   init(raw: Observable<Element>) {
     source = raw
   }
-  
-  public func receive<S>(subscriber: S) where S : Subscriber, Never == S.Failure, Element == S.Input {
+
+  public func receive<S>(subscriber: S) where S: Subscriber, Never == S.Failure, Element == S.Input {
     source.receive(subscriber: subscriber)
   }
 
   public func asObservable() -> Observable<Element> {
     source
   }
-  
+
   public func asSharedSequence() -> SharedSequence<SharingStrategy, Element> {
     self
   }
@@ -56,7 +58,8 @@ public struct SharedSequence<SharingStrategy: SharingStrategyProtocol, Element>:
 
 public extension SharedSequence where SharingStrategy == DriverSharingStrategy {
   @MainActor
-  public func drive<Observer: ObserverType>(_ observers: Observer...) -> AnyCancellable where Observer.Element == Element {
+  func drive<Observer: ObserverType>(_ observers: Observer...) -> AnyCancellable
+  where Observer.Element == Element {
     asSharedSequence().asObservable().sink { e in observers.forEach { $0.on(.next(e)) } }
   }
 }

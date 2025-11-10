@@ -2,36 +2,30 @@
 
 import Combine
 
-extension ObservableConvertibleType {
-  public func asDriver(onErrorJustReturn: Element) -> Driver<Element> {
-    let source = self
-      .asObservable()
+extension Publisher {
+  public func asDriver(onErrorJustReturn: Output) -> Driver<Output> {
+    let source =
+      self
+      .catch { _ in Just(onErrorJustReturn) }
       .receive(on: DriverSharingStrategy.scheduler)
-      .catch({ _ in
-        Just(onErrorJustReturn)
-      })
       .eraseToAnyPublisher()
     return Driver(source)
   }
-  
-  public func asDriver(onErrorDriveWith: Driver<Element>) -> Driver<Element> {
-    let source = self
-      .asObservable()
+
+  public func asDriver(onErrorDriveWith: Driver<Output>) -> Driver<Output> {
+    let source =
+      self
+      .catch { _ in onErrorDriveWith.asObservable() }
       .receive(on: DriverSharingStrategy.scheduler)
-      .catch { _ in
-        onErrorDriveWith.asObservable()
-      }
       .eraseToAnyPublisher()
     return Driver(source)
   }
-  
-  public func asDriver(onErrorRecover: @escaping (_ error: Swift.Error) -> Driver<Element>) -> Driver<Element> {
-    let source = self
-      .asObservable()
+
+  public func asDriver(onErrorRecover: @escaping (_ error: Swift.Error) -> Driver<Output>) -> Driver<Output> {
+    let source =
+      self
+      .catch { error in onErrorRecover(error).asObservable() }
       .receive(on: DriverSharingStrategy.scheduler)
-      .catch { error in
-        onErrorRecover(error).asObservable()
-      }
       .eraseToAnyPublisher()
     return Driver(source)
   }

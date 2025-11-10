@@ -2,8 +2,6 @@ import Combine
 import CoreData
 import Foundation
 
-extension NSManagedObjectContext: CombineCompatible {}
-
 public extension Reactive where Base: NSManagedObjectContext {
   @MainActor
   func entities<T: NSManagedObject>(
@@ -57,7 +55,7 @@ public extension Reactive where Base: NSManagedObjectContext {
   }
 
   @MainActor
-  func entities<P: Persistable>(
+  func entities<P: Persistable & Sendable>(
     _ kind: P.Type = P.self,
     predicate: NSPredicate? = .none,
     sortDescriptors: [NSSortDescriptor]? = .none,
@@ -139,19 +137,20 @@ public extension Reactive where Base: NSManagedObjectContext {
   @CoreData
   @discardableResult
   func batchDelete<P: Persistable & Sendable>(_ persistables: P.Type, predicate: String? = .none) async throws -> Int? {
-    try await base.perform {
+    let context = self.base
+    return try await base.perform {
       let request = NSFetchRequest<NSFetchRequestResult>(entityName: P.entityName)
       if let predicate {
         request.predicate = NSPredicate(format: predicate)
       }
       let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
       deleteRequest.resultType = .resultTypeObjectIDs
-      if let result = try base.execute(deleteRequest) as? NSBatchDeleteResult,
+      if let result = try context.execute(deleteRequest) as? NSBatchDeleteResult,
         let objectIDs = result.result as? [NSManagedObjectID]
       {
         let changes: [AnyHashable: Any] = [NSDeletedObjectsKey: objectIDs]
-        NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [base])
-        try base.save()
+        NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [context])
+        try context.save()
         return objectIDs.count
       }
       return 0

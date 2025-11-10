@@ -10,7 +10,7 @@ public struct Binder<Value>: ObserverType {
 
   public init<Target: AnyObject>(
     _ target: Target,
-    scheduler: Scheduler = RunLoop.main,
+    scheduler: any Scheduler = RunLoop.main,
     binding: @escaping (Target, Value) -> Void
   ) {
     weak var weakTarget = target

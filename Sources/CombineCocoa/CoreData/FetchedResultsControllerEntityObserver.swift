@@ -37,7 +37,7 @@ public nonisolated struct FetchedResultsControllerPublisher<T: NSManagedObject>:
 
 extension FetchedResultsControllerPublisher {
   private final nonisolated class Subscription<S: Subscriber>: NSObject, NSFetchedResultsControllerDelegate, Combine
-      .Subscription
+      .Subscription, @unchecked Sendable
   where S.Input == [T], S.Failure == Error {
     private var subscriber: S?
     private let controller: NSFetchedResultsController<T>
@@ -82,6 +82,10 @@ extension FetchedResultsControllerPublisher {
         guard let self, let subscriber else { return }
         _ = subscriber.receive(controller.fetchedObjects ?? [])
       }
+    }
+
+    func controllerDidChangeContent(_ controller: NSFetchedResultsController<any NSFetchRequestResult>) {
+      sendFetchedObjects()
     }
   }
 }
