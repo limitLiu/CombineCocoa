@@ -20,14 +20,12 @@ public extension Reactive where Base: NSManagedObjectContext {
 }
 
 public extension Reactive where Base: NSManagedObjectContext {
-  @CoreData
   private func create<E: Persistable>(_ kind: E.Type = E.self) -> E.T {
     // swiftlint:disable force_cast
     NSEntityDescription.insertNewObject(forEntityName: E.entityName, into: base) as! E.T
     // swiftlint:enable force_cast
   }
 
-  @CoreData
   private func get<P: Persistable>(_ persistable: P) throws -> P.T? {
     let fetchRequest: NSFetchRequest<P.T> = NSFetchRequest(entityName: P.entityName)
     fetchRequest.predicate = persistable.predicate()
@@ -37,7 +35,6 @@ public extension Reactive where Base: NSManagedObjectContext {
     return result.finalResult?.first
   }
 
-  @MainActor
   func getSync<P: Persistable>(_ persistable: P) throws -> P.T? {
     let fetchRequest: NSFetchRequest<P.T> = NSFetchRequest(entityName: P.entityName)
     fetchRequest.predicate = persistable.predicate()
@@ -46,7 +43,6 @@ public extension Reactive where Base: NSManagedObjectContext {
     return result.first
   }
 
-  @CoreData
   func delete(_ persistable: some Persistable) throws {
     if let entity = try get(persistable) {
       base.delete(entity)
@@ -71,12 +67,10 @@ public extension Reactive where Base: NSManagedObjectContext {
       .eraseToAnyPublisher()
   }
 
-  @CoreData
   func update<P: Persistable>(_ persistable: P) throws {
     try persistable.update(get(persistable) ?? create(P.self))
   }
 
-  @MainActor
   func fetchSync<P: Persistable>(
     _ kind: P.Type = P.self,
     predicate: NSPredicate? = .none,
@@ -94,7 +88,6 @@ public extension Reactive where Base: NSManagedObjectContext {
     return result.map { P($0) }
   }
 
-  @CoreData
   @discardableResult
   func batchUpdate<P: BatchInsertable>(_ persistables: [P]) throws -> Bool {
     guard !persistables.isEmpty else { return false }
@@ -114,7 +107,6 @@ public extension Reactive where Base: NSManagedObjectContext {
     }
   }
 
-  @CoreData
   @discardableResult
   func batchDeleteSync<P: Persistable>(_ persistables: P.Type, predicate: NSPredicate? = .none) throws -> Int? {
     let request = NSFetchRequest<NSFetchRequestResult>(entityName: P.entityName)
@@ -134,7 +126,6 @@ public extension Reactive where Base: NSManagedObjectContext {
     return 0
   }
 
-  @CoreData
   @discardableResult
   func batchDelete<P: Persistable & Sendable>(_ persistables: P.Type, predicate: String? = .none) async throws -> Int? {
     let context = self.base

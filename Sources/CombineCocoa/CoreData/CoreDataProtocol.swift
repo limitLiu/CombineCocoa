@@ -1,11 +1,6 @@
 import Combine
 import CoreData
 
-@globalActor actor CoreData {
-  static let shared = CoreData()
-  private init() {}
-}
-
 public nonisolated protocol Persistable {
   associatedtype T: NSManagedObject
   static var entityName: String { get }
