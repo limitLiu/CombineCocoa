@@ -43,6 +43,10 @@ public struct ControlProperty<Value>: @preconcurrency ControlPropertyType {
   public func asControlProperty() -> ControlProperty<Value> {
     self
   }
+  
+  public var changed: AnyPublisher<Value, Failure> {
+    values.dropFirst().eraseToAnyPublisher()
+  }
 }
 
 #endif
