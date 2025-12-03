@@ -23,7 +23,7 @@ public struct ControlProperty<Value>: @preconcurrency ControlPropertyType {
   let valueSink: AnyObserver<Value>
   
   public init<Values: Publisher, Sink: ObserverType>(values: Values, valueSink: Sink) where Output == Values.Output, Failure == Values.Failure, Output == Sink.Element {
-    self.values = values.receive(on: RunLoop.main).eraseToAnyPublisher()
+    self.values = values.eraseToAnyPublisher()
     self.valueSink = valueSink.asObserver()
   }
   
