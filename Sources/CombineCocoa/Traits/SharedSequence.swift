@@ -62,6 +62,23 @@ public extension SharedSequence where SharingStrategy == DriverSharingStrategy {
   where Observer.Element == Element {
     asSharedSequence().asObservable().sink { e in observers.forEach { $0.on(.next(e)) } }
   }
+
+  @MainActor
+  func drive<Observer: ObserverType>(_ observers: Observer...) -> AnyCancellable
+  where Observer.Element == Element? {
+    asSharedSequence().asObservable().map { $0 as Element? }
+      .sink { e in observers.forEach { $0.on(.next(e)) } }
+  }
+  
+  @MainActor
+  func drive<R>(_ transformation: (Observable<Element>) -> R) -> R {
+    transformation(asObservable())
+  }
+  
+  @MainActor
+  func drive<R1, R2>(_ with: (Observable<Element>) -> (R1) -> R2, curriedArgument: R1) -> R2 {
+    with(asObservable())(curriedArgument)
+  }
 }
 
 #endif
