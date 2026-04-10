@@ -4,7 +4,7 @@ import Foundation
 public typealias Driver<Element> = SharedSequence<DriverSharingStrategy, Element>
 
 public struct DriverSharingStrategy: SharingStrategyProtocol {
-  public static var scheduler: some Scheduler { RunLoop.main }
+  public static var scheduler: some Scheduler { MainScheduler.instance }
 
   public static func share<Element>(_ source: Observable<Element>) -> Observable<Element> {
     source.share(replay: 1).eraseToAnyPublisher()

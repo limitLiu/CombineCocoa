@@ -10,10 +10,10 @@ public struct Binder<Value>: ObserverType {
 
   public init<Target: AnyObject>(
     _ target: Target,
-    scheduler: any Scheduler = RunLoop.main,
-    binding: @escaping (Target, Value) -> Void
+    scheduler: any Scheduler = MainScheduler.instance,
+    binding: @escaping (Target, Value) -> Void,
   ) {
-    weak var weakTarget = target
+    weak let weakTarget = target
     self.binding = { event in
       switch event {
       case let .next(value):
@@ -35,66 +35,64 @@ public struct Binder<Value>: ObserverType {
   }
 
   public func asObserver() -> AnyObserver<Value> {
-    AnyObserver(eventHandler: self.on(_:))
+    AnyObserver(eventHandler: on(_:))
   }
 }
 
-extension Combine.Publisher where Failure == Never {
-  public func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
-  where Observer.Element == Output {
-    self.sink { event in
+public extension Combine.Publisher where Failure == Never {
+  func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
+    where Observer.Element == Output {
+    sink { event in
       observers.forEach { $0.on(.next(event)) }
     }
   }
 
-  public func bind<Observer: ObserverType>(to binders: Observer...) -> AnyCancellable
-  where Observer.Element == Output? {
-    self
-      .map { $0 as Output? }
+  func bind<Observer: ObserverType>(to binders: Observer...) -> AnyCancellable
+    where Observer.Element == Output? {
+    map { $0 as Output? }
       .sink { event in
         binders.forEach { $0.on(.next(event)) }
       }
   }
 
-  public func bind<R>(to binder: (Self) -> R) -> R {
+  func bind<R>(to binder: (Self) -> R) -> R {
     binder(self)
   }
 }
 
-extension Combine.Publisher {
-  public func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
-  where Observer.Element == Output {
+public extension Combine.Publisher {
+  func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
+    where Observer.Element == Output {
     sink(
       receiveCompletion: { completion in
-        if case .failure(let err) = completion {
+        if case let .failure(err) = completion {
           observers.forEach { $0.on(.error(err)) }
         }
       },
       receiveValue: { value in
         observers.forEach { $0.on(.next(value)) }
-      }
+      },
     )
   }
 
-  public func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
-  where Observer.Element == Output? {
-    self
-      .map { $0 as Output? }
+  func bind<Observer: ObserverType>(to observers: Observer...) -> AnyCancellable
+    where Observer.Element == Output? {
+    map { $0 as Output? }
       .sink(
         receiveCompletion: { completion in
-          if case .failure(let err) = completion {
+          if case let .failure(err) = completion {
             observers.forEach { $0.on(.error(err)) }
           }
         },
         receiveValue: { value in
           observers.forEach { $0.on(.next(value)) }
-        }
+        },
       )
   }
 }
 
-extension Publisher {
-  public func bind<R1, R2>(to binder: (Self) -> (R1) -> R2, curriedArgument: R1) -> R2 {
+public extension Publisher {
+  func bind<R1, R2>(to binder: (Self) -> (R1) -> R2, curriedArgument: R1) -> R2 {
     binder(self)(curriedArgument)
   }
 }
